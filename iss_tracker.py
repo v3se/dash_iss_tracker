@@ -5,6 +5,15 @@ import pandas as pd
 from dash.dependencies import Input, Output
 import urllib.request, json
 import plotly.graph_objs as go
+import ephem
+import datetime
+import math
+
+tle_name = 'ISS (ZARYA)';
+tle_element_url = 'http://www.celestrak.com/NORAD/elements/stations.txt'
+
+#tle_rec = ephem.readtle(name, line1, line2)
+#tle_rec.compute()
 
 
 iss_url = 'http://api.open-notify.org/iss-now.json'
@@ -20,6 +29,7 @@ with urllib.request.urlopen(iss_url) as url:
     data = [ go.Scattergeo(
     lon = df['lon'],
     lat = df['lat'])]
+    print(data)
 
     layout = dict(
         title = 'ISS Location',
@@ -44,24 +54,52 @@ with urllib.request.urlopen(iss_url) as url:
             subunitwidth = 1
         ),
     )
-
+ 
 
 fig=go.Figure(data=data, layout=layout)
+#fig = tools.make_subplots(rows=3, cols=1, layout=layout, specs=[[{}], [{}]])
+
 
 app.layout  = html.Div([
     dcc.Graph(id='graph', figure=fig),
     dcc.Interval(
         id='interval-component',
-        interval=1*1000, # in milliseconds
+        interval=1*5000, # in milliseconds
         n_intervals=0
         )
 ])
+
+
 
 @app.callback(
     Output(component_id='graph', component_property='figure'),
     [Input(component_id='interval-component', component_property='n_intervals')])
 
 def update_value(interval):
+    f = urllib.request.urlopen('http://www.celestrak.com/NORAD/elements/stations.txt')
+    myfile = f.read()
+    arr = myfile.decode().split("\r")
+    #print ("result code: " + str(f.getcode()))
+    tle_line1 = arr[1]
+    tle_line2 = arr[2]
+    #print (tle_line1,tle_line2)
+    date = datetime.datetime.utcnow()
+    tick = datetime.timedelta(0,300)
+    date_n = date + datetime.timedelta(0,5400)
+    df = pd.DataFrame()
+    df2 = pd.DataFrame()
+    for i in range(18):
+        date = date + tick
+        tle_rec = ephem.readtle(tle_name, tle_line1, tle_line2)
+        tle = tle_rec.compute(date)
+        lon_deg= math.degrees(tle_rec.sublong)
+        lat_deg = math.degrees(tle_rec.sublat)
+        #print(tle_rec.sublong, tle_rec.sublat, lon_deg, lat_deg)
+        df = pd.DataFrame(data={'lon': [lon_deg], 'lat': [lat_deg]})
+        df2 = df2.append(df)
+        
+    #print (df2)
+
     with urllib.request.urlopen(iss_url) as url:
         data = json.loads(url.read().decode())
         lat = data['iss_position']['latitude']
@@ -73,8 +111,18 @@ def update_value(interval):
         lat = df['lat'],
         name = 'ISS',
         marker = dict(symbol='circle', size = 10, opacity = 0.7, color = "red"),
-        hovertext = 'ISS Realtime Location')]
+        hovertext = 'ISS Realtime Location'),
+        go.Scattergeo(
+        lon = df2.lon,
+        lat = df2.lat,
+        name = 'ISS Orbit (+5min - +90min)',
+        mode = 'lines',
+        line = go.scattergeo.Line(
+            width = 1,
+            color = 'blue'))]
+
         fig=go.Figure(data=data, layout=layout)
+        #fig.append_trace({'x':df2.lon,'y':df2.lat,'type':'scatter','name':'orbit'},1,1)
 
         return fig
 
