@@ -29,20 +29,20 @@ with urllib.request.urlopen(iss_url) as url:
     data = [ go.Scattergeo(
     lon = df['lon'],
     lat = df['lat'])]
-    print(data)
+    #print(data)
 
     layout = dict(
         title = 'ISS Location',
-        autosize=False,
-        width=1250,
-        height=1250,
-        margin=go.layout.Margin(
-        l=80,
-        r=50,
-        b=400,
-        t=100,
-        pad=4
-    ),
+        autosize=True,
+        width=1200,
+        height=800,
+#        margin=go.layout.Margin(
+#        l=10,
+#        r=10,
+#        b=1,
+#        t=10,
+#        pad=1
+    
         geo = dict(
             scope='world',
             projection=dict( type='robinson' ),
@@ -61,13 +61,19 @@ fig=go.Figure(data=data, layout=layout)
 
 
 app.layout  = html.Div([
+	html.Div([
     dcc.Graph(id='graph', figure=fig),
     dcc.Interval(
         id='interval-component',
         interval=1*5000, # in milliseconds
         n_intervals=0
-        )
+        )], style={'display': 'inline-block'}),
+		html.Div([
+		html.P(html.Iframe(src="https://www.ustream.tv/embed/9408562?html5ui", width="700", height="500", title="ISS Live Feed"))
+		], style={'marginBottom': 1, 'marginTop': 1, 'position': 'relational', 'right': 100, 'top': 140, 'float': 'right', 'display': 'inline-block'})
+
 ])
+
 
 
 
@@ -95,7 +101,7 @@ def update_value(interval):
         lon_deg= math.degrees(tle_rec.sublong)
         lat_deg = math.degrees(tle_rec.sublat)
         #print(tle_rec.sublong, tle_rec.sublat, lon_deg, lat_deg)
-        df = pd.DataFrame(data={'lon': [lon_deg], 'lat': [lat_deg]})
+        df = pd.DataFrame(data={'lon': [lon_deg], 'lat': [lat_deg], 'time': [date]})
         df2 = df2.append(df)
         
     #print (df2)
@@ -117,9 +123,11 @@ def update_value(interval):
         lat = df2.lat,
         name = 'ISS Orbit (+5min - +90min)',
         mode = 'lines',
+        opacity = 0.5,
+        hovertext = df2.time,
         line = go.scattergeo.Line(
-            width = 1,
-            color = 'blue'))]
+            width = 2.5,
+            color = 'blue',))]
 
         fig=go.Figure(data=data, layout=layout)
         #fig.append_trace({'x':df2.lon,'y':df2.lat,'type':'scatter','name':'orbit'},1,1)
